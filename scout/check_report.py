@@ -23,26 +23,26 @@ NUM = re.compile(r"(?<![A-Za-z0-9.])[-+]?\d+(?:\.\d+)?(?:st|nd|rd|th)?(?![A-Za-z
 LIST_MARKER = re.compile(r"^\s*\d+\.\s", re.MULTILINE)
 
 
-def tokens(text):
+def tokens(text: str) -> list[str]:
     text = LIST_MARKER.sub("", text)  # "1. " list numbering is formatting, not data
     dates = DATE.findall(text)
     rest = DATE.sub(" ", text)
     return dates + NUM.findall(rest)
 
 
-def check(md_path: Path):
+def check(md_path: Path) -> list[str]:
     ledger_path = md_path.with_suffix("").with_suffix(".ledger.json")
     if not ledger_path.exists():
         ledger_path = Path(str(md_path).removesuffix(".md") + ".ledger.json")
     saved = json.loads(ledger_path.read_text())
-    errors = []
+    errors: list[str] = []
 
     fresh = compute(saved["opponent"], saved["game_date"])["ledger"]
     for key, val in saved["values"].items():
         if fresh.get(key) != val:
             errors.append(f"stale value {key}: report says {val!r}, data says {fresh.get(key)!r}")
 
-    allowed = set()
+    allowed: set[str] = set()
     for v in saved["values"].values():
         allowed.update(tokens(v))
         allowed.update(t.lstrip("+") for t in tokens(v))
@@ -52,7 +52,7 @@ def check(md_path: Path):
     return errors
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     argv = argv if argv is not None else sys.argv[1:]
     if not argv:
         print("usage: python -m scout.check_report <report.md> [...]")

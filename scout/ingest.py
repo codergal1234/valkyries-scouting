@@ -14,10 +14,12 @@ import sys
 import time
 import urllib.request
 from datetime import UTC, datetime
+from pathlib import Path
 
 import duckdb
 
 from scout.config import CLEAN, PLAYOFFS, RAW, REGULAR_SEASON, SOURCE_BASE, SOURCES
+from scout.db import scalar
 
 # Upstream column name -> name the pipeline expects.
 # When the source renames a column, add the mapping here instead of touching raw data.
@@ -29,15 +31,15 @@ COLUMN_ALIASES: dict[str, dict[str, str]] = {
 }
 
 
-def raw_path(table):
+def raw_path(table: str) -> Path:
     return RAW / f"{table}.parquet"
 
 
-def clean_path(table):
+def clean_path(table: str) -> Path:
     return CLEAN / f"{table}.parquet"
 
 
-def download(table, refresh=False, retries=3):
+def download(table: str, refresh: bool = False, retries: int = 3) -> bool:
     dest = raw_path(table)
     if dest.exists() and not refresh:
         return False
@@ -52,9 +54,10 @@ def download(table, refresh=False, retries=3):
             if attempt == retries:
                 raise RuntimeError(f"download failed for {table} from {url}: {exc}") from exc
             time.sleep(2**attempt)
+    return False
 
 
-def sha256(path):
+def sha256(path: Path) -> str:
     h = hashlib.sha256()
     with open(path, "rb") as f:
         for chunk in iter(lambda: f.read(1 << 20), b""):
@@ -62,14 +65,14 @@ def sha256(path):
     return h.hexdigest()
 
 
-def select_with_aliases(con, table):
+def select_with_aliases(con: duckdb.DuckDBPyConnection, table: str) -> str:
     cols = [r[0] for r in con.execute(f"DESCRIBE SELECT * FROM '{raw_path(table)}'").fetchall()]
     aliases = COLUMN_ALIASES.get(table, {})
     parts = [f'"{c}" AS "{aliases[c]}"' if c in aliases else f'"{c}"' for c in cols]
     return f"SELECT {', '.join(parts)} FROM '{raw_path(table)}'"
 
 
-def build_clean():
+def build_clean() -> dict[str, int]:
     CLEAN.mkdir(parents=True, exist_ok=True)
     con = duckdb.connect()
     for table in SOURCES:
@@ -98,11 +101,11 @@ def build_clean():
               AND home_id IN (SELECT team_id FROM franchises))
         TO '{clean_path("schedule")}' (FORMAT parquet)
     """)
-    counts = {t: con.execute(f"SELECT count(*) FROM '{clean_path(t)}'").fetchone()[0] for t in SOURCES}
+    counts = {t: int(scalar(con, f"SELECT count(*) FROM '{clean_path(t)}'")) for t in SOURCES}
     return counts
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--refresh", action="store_true", help="re-download raw files")
     args = ap.parse_args(argv)

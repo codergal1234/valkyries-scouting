@@ -27,7 +27,7 @@ class Result:
     detail: str = ""
 
 
-def _con(folder: Path):
+def _con(folder: Path) -> duckdb.DuckDBPyConnection:
     con = duckdb.connect()
     for table in CONTRACTS:
         path = folder / f"{table}.parquet"
@@ -36,8 +36,12 @@ def _con(folder: Path):
     return con
 
 
-def check_contracts(con, folder):
-    out = []
+def _norm(name: str) -> str:
+    return name.replace("_", "").lower()
+
+
+def check_contracts(con: duckdb.DuckDBPyConnection, folder: Path) -> list[Result]:
+    out: list[Result] = []
     for table, cols in CONTRACTS.items():
         if not (folder / f"{table}.parquet").exists():
             out.append(Result(f"contract:{table}", False, f"missing file {table}.parquet"))
@@ -47,9 +51,8 @@ def check_contracts(con, folder):
         wrong = [f"{c} is {actual[c]}, expected {t}" for c, t in cols.items() if c in actual and actual[c] != t]
         problems = [f"missing column '{c}'" for c in missing] + wrong
         if problems:
-            norm = lambda s: s.replace("_", "").lower()  # noqa: E731
             extra = set(actual) - set(cols)
-            guesses = [f"'{c}' may have been renamed to '{e}'" for c in missing for e in extra if norm(e) == norm(c)]
+            guesses = [f"'{c}' may have been renamed to '{e}'" for c in missing for e in extra if _norm(e) == _norm(c)]
             hint = f" (likely upstream rename: {'; '.join(guesses)})" if guesses else ""
             out.append(Result(f"contract:{table}", False, "; ".join(problems) + hint))
         else:
@@ -57,7 +60,7 @@ def check_contracts(con, folder):
     return out
 
 
-def _query_check(con, name, sql, describe):
+def _query_check(con: duckdb.DuckDBPyConnection, name: str, sql: str, describe: str) -> Result:
     """sql returns the BAD rows. Zero rows = pass."""
     rows = con.execute(sql).fetchall()
     if not rows:
@@ -65,7 +68,7 @@ def _query_check(con, name, sql, describe):
     return Result(name, False, f"{len(rows)} bad rows; {describe}; first: {rows[0]}")
 
 
-def check_invariants(con):
+def check_invariants(con: duckdb.DuckDBPyConnection) -> list[Result]:
     checks = [
         (
             "nonempty:all_tables",
@@ -123,7 +126,7 @@ def check_invariants(con):
             "box score dated in the future",
         ),
     ]
-    out = []
+    out: list[Result] = []
     for name, sql, describe in checks:
         try:
             out.append(_query_check(con, name, sql, describe))
@@ -132,7 +135,7 @@ def check_invariants(con):
     return out
 
 
-def run(folder: Path = CLEAN):
+def run(folder: Path = CLEAN) -> list[Result]:
     con = _con(folder)
     results = check_contracts(con, folder)
     if all(r.ok for r in results):
@@ -142,7 +145,7 @@ def run(folder: Path = CLEAN):
     return results
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dir", type=Path, default=CLEAN)
     args = ap.parse_args(argv)
