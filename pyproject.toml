@@ -8,3 +8,8 @@ select = ["E", "W", "F", "I", "N", "C90", "B", "UP"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
+
+[tool.mypy]
+strict = true
+python_version = "3.11"
+files = ["scout", "tests", "scripts", ".factory/hooks"]

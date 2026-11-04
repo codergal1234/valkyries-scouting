@@ -9,6 +9,7 @@ Opponent scouting reports for the Golden State Valkyries, built from public WNBA
 |---|---|
 | Install (creates `.venv/`, installs pinned deps) | `make setup` |
 | Lint + format check (ruff) | `make lint` (auto-fix: `make format`) |
+| Type check (mypy strict) | `make typecheck` |
 | Download + rebuild clean tables | `make ingest` |
 | Run all data checks | `make validate` |
 | Unit tests | `make test` |
@@ -26,6 +27,7 @@ Dependencies are pinned with `==` in `requirements.txt`; change a version there,
 - `scout/ingest.py`: downloads raw files, writes `data/clean/`. Upstream renames go in `COLUMN_ALIASES`.
 - `scout/contracts.py`: required columns and types per table.
 - `scout/validate.py`: contract checks + basketball invariants (points must add up).
+- `scout/db.py`: typed helpers for DuckDB results (`scalar`, `records`).
 - `scout/metrics.py`: every metric, in SQL. Definitions at the top of the file.
 - `scout/report.py`: builds the report. All numbers go through `Ledger`.
 - `scout/check_report.py`: proves every number in a report was computed.
@@ -36,6 +38,8 @@ Dependencies are pinned with `==` in `requirements.txt`; change a version there,
 
 - ruff enforces style, imports, pep8 naming (snake_case functions and variables, CapWords classes)
   and a max cyclomatic complexity of 10. Config is in `pyproject.toml`. Lines up to 120 chars.
+- mypy runs in strict mode: every function needs parameter and return annotations.
+  Use `scout.db.scalar` / `scout.db.records` to read query results with types.
 
 ## Rules
 

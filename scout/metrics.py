@@ -19,14 +19,18 @@ Definitions
 - Clutch: 4th quarter or overtime, final 5:00 of the period, score within 5 before the play
 """
 
+from collections.abc import Sequence
+
 import duckdb
+from pandas import DataFrame
 
 from scout.config import CLEAN
+from scout.db import Row, records
 
 RIM_PATTERN = "(?i)(layup|dunk|tip shot|putback|alley oop|finger roll)"
 
 
-def connect():
+def connect() -> duckdb.DuckDBPyConnection:
     con = duckdb.connect()
     for t in ("pbp", "team_box", "player_box", "schedule"):
         con.execute(f"CREATE VIEW {t} AS SELECT * FROM '{CLEAN / f'{t}.parquet'}'")
@@ -36,12 +40,12 @@ def connect():
     return con
 
 
-def _games(as_of, season_types=(2, 3)):
+def _games(as_of: str, season_types: Sequence[int] = (2, 3)) -> str:
     st = ", ".join(str(s) for s in season_types)
     return f"game_date < DATE '{as_of}' AND season_type IN ({st})"
 
 
-def team_table(con, as_of, season_types=(2, 3)):
+def team_table(con: duckdb.DuckDBPyConnection, as_of: str, season_types: Sequence[int] = (2, 3)) -> DataFrame:
     """One row per team with season ratings, four factors and league ranks (1 = best)."""
     sql = f"""
     WITH g AS (
@@ -90,7 +94,13 @@ def team_table(con, as_of, season_types=(2, 3)):
     return con.execute(sql).df()
 
 
-def shot_profile(con, team_id, as_of, side="offense", season_types=(2, 3)):
+def shot_profile(
+    con: duckdb.DuckDBPyConnection,
+    team_id: int,
+    as_of: str,
+    side: str = "offense",
+    season_types: Sequence[int] = (2, 3),
+) -> dict[str, Row]:
     """Share of field-goal attempts and FG% by zone. side='defense' = what opponents shoot against them."""
     team_filter = (
         f"team_id = {team_id}"
@@ -111,10 +121,10 @@ def shot_profile(con, team_id, as_of, side="offense", season_types=(2, 3)):
            100 * avg(made::INT) fg_pct
     FROM s GROUP BY zone ORDER BY zone
     """
-    return {r["zone"]: r for r in con.execute(sql).df().to_dict("records")}
+    return {r["zone"]: r for r in records(con.execute(sql).df())}
 
 
-def league_shot_shares(con, as_of, season_types=(2, 3)):
+def league_shot_shares(con: duckdb.DuckDBPyConnection, as_of: str, season_types: Sequence[int] = (2, 3)) -> DataFrame:
     """Each team's offensive zone shares, with league rank by share (1 = takes the most)."""
     sql = f"""
     WITH s AS (
@@ -131,7 +141,7 @@ def league_shot_shares(con, as_of, season_types=(2, 3)):
     return con.execute(sql).df()
 
 
-def clutch(con, team_id, as_of, season_types=(2, 3)):
+def clutch(con: duckdb.DuckDBPyConnection, team_id: int, as_of: str, season_types: Sequence[int] = (2, 3)) -> Row:
     """Points scored and allowed in clutch time, plus clutch games played."""
     sql = f"""
     WITH p AS (
@@ -149,12 +159,19 @@ def clutch(con, team_id, as_of, season_types=(2, 3)):
            coalesce(sum(CASE WHEN scoring_play AND team_id <> {team_id} THEN score_value END), 0) pts_against
     FROM c
     """
-    r = con.execute(sql).df().to_dict("records")[0]
+    r = records(con.execute(sql).df())[0]
     r["net"] = r["pts_for"] - r["pts_against"]
     return r
 
 
-def top_players(con, team_id, as_of, n=5, min_games=8, season_types=(2, 3)):
+def top_players(
+    con: duckdb.DuckDBPyConnection,
+    team_id: int,
+    as_of: str,
+    n: int = 5,
+    min_games: int = 8,
+    season_types: Sequence[int] = (2, 3),
+) -> list[Row]:
     sql = f"""
     SELECT athlete_display_name name, count(*) games, avg(minutes) mpg, avg(points) ppg,
            avg(rebounds) rpg, avg(assists) apg,
@@ -169,10 +186,12 @@ def top_players(con, team_id, as_of, n=5, min_games=8, season_types=(2, 3)):
     GROUP BY athlete_id, athlete_display_name HAVING count(*) >= {min_games}
     ORDER BY ppg DESC LIMIT {n}
     """
-    return con.execute(sql).df().to_dict("records")
+    return records(con.execute(sql).df())
 
 
-def recent_form(con, team_id, as_of, n=10, season_types=(2, 3)):
+def recent_form(
+    con: duckdb.DuckDBPyConnection, team_id: int, as_of: str, n: int = 10, season_types: Sequence[int] = (2, 3)
+) -> Row:
     sql = f"""
     WITH g AS (
         SELECT a.game_date, a.team_winner win, a.team_score pts, b.team_score opp_pts,
@@ -187,24 +206,26 @@ def recent_form(con, team_id, as_of, n=10, season_types=(2, 3)):
            100 * sum(pts) / sum(p) - 100 * sum(opp_pts) / sum(op) net
     FROM g
     """
-    return con.execute(sql).df().to_dict("records")[0]
+    return records(con.execute(sql).df())[0]
 
 
-def head_to_head(con, team_id, opp_id, as_of, season_types=(2, 3)):
+def head_to_head(
+    con: duckdb.DuckDBPyConnection, team_id: int, opp_id: int, as_of: str, season_types: Sequence[int] = (2, 3)
+) -> list[Row]:
     sql = f"""
     SELECT game_date, season_type, team_score pts, opponent_team_score opp_pts, team_winner win
     FROM team_box WHERE team_id = {team_id} AND opponent_team_id = {opp_id}
       AND {_games(as_of, season_types)}
     ORDER BY game_date
     """
-    return con.execute(sql).df().to_dict("records")
+    return records(con.execute(sql).df())
 
 
-def team_id_for(con, abbr):
+def team_id_for(con: duckdb.DuckDBPyConnection, abbr: str) -> tuple[int, str]:
     row = con.execute(
         "SELECT DISTINCT team_id, team_display_name FROM team_box WHERE upper(team_abbreviation) = upper(?)", [abbr]
     ).fetchone()
     if not row:
         valid = [r[0] for r in con.execute("SELECT DISTINCT team_abbreviation FROM team_box ORDER BY 1").fetchall()]
         raise SystemExit(f"Unknown team '{abbr}'. Valid: {', '.join(valid)}")
-    return row
+    return row[0], row[1]

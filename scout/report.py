@@ -12,12 +12,28 @@ import argparse
 import json
 import sys
 from datetime import date
+from pathlib import Path
+from typing import Any, TypedDict
+
+import duckdb
+import pandas as pd
 
 from scout import metrics as m
 from scout.config import CLIENT_ABBR, CLIENT_TEAM_ID, REPORTS
+from scout.db import Row, records, scalar
+
+# (kind, body): body is str for h1/h2/p, list[str] for ol/ul, list[list[str]] for table.
+Block = tuple[str, Any]
 
 
-def ordinal(n):
+class Report(TypedDict):
+    opponent: str
+    game_date: str
+    blocks: list[Block]
+    ledger: dict[str, str]
+
+
+def ordinal(n: int) -> str:
     n = int(n)
     suffix = "th" if 10 <= n % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
     return f"{n}{suffix}"
@@ -26,25 +42,25 @@ def ordinal(n):
 class Ledger:
     """Records every printed value under a stable key."""
 
-    def __init__(self):
-        self.values = {}
+    def __init__(self) -> None:
+        self.values: dict[str, str] = {}
 
-    def num(self, key, value, fmt="{:.1f}"):
+    def num(self, key: str, value: Any, fmt: str = "{:.1f}") -> str:
         text = fmt.format(value)
         self.values[key] = text
         return text
 
-    def rank(self, key, value):
+    def rank(self, key: str, value: Any) -> str:
         text = ordinal(value)
         self.values[key] = text
         return text
 
-    def text(self, key, value):
+    def text(self, key: str, value: object) -> str:
         self.values[key] = str(value)
         return str(value)
 
 
-def find_game(con, opp_id, as_of=None):
+def find_game(con: duckdb.DuckDBPyConnection, opp_id: int, as_of: str | None = None) -> tuple[str, str]:
     """The next unplayed GS vs opponent game on the schedule, or the as_of date given."""
     if as_of:
         row = con.execute(
@@ -63,9 +79,17 @@ def find_game(con, opp_id, as_of=None):
     return date.today().isoformat(), "Next matchup"
 
 
-def guard_keys(lg, opp, gs_shots, shares, players, cl, n_teams):
+def guard_keys(
+    lg: Ledger,
+    opp: "pd.Series[Any]",
+    gs_shots: object,
+    shares: dict[str, Row],
+    players: list[Row],
+    cl: Row,
+    n_teams: int,
+) -> list[str]:
     """Rule-based 'how to guard them' points. Each has an extremity score; the top 3 are used."""
-    cands = []
+    cands: list[tuple[Any, str]] = []
     rim = shares.get("rim")
     three = shares.get("3pt")
     mid = shares.get("mid")
@@ -148,20 +172,20 @@ def guard_keys(lg, opp, gs_shots, shares, players, cl, n_teams):
     return [c[1] for c in cands[:3]]
 
 
-def compute(opponent, as_of=None):
+def compute(opponent: str, as_of: str | None = None) -> Report:
     con = m.connect()
     opp_id, opp_name = m.team_id_for(con, opponent)
     game_date, headline = find_game(con, opp_id, as_of)
     lg = Ledger()
-    blocks = []
+    blocks: list[Block] = []
 
     teams = m.team_table(con, game_date)
     n = int(teams["teams"].iloc[0])
     opp = teams[teams.team_id == opp_id].iloc[0]
     gs = teams[teams.team_id == CLIENT_TEAM_ID].iloc[0]
-    last = con.execute("SELECT max(game_date) FROM team_box WHERE game_date < ?", [game_date]).fetchone()[0]
+    last = scalar(con, "SELECT max(game_date) FROM team_box WHERE game_date < ?", [game_date])
     shares_df = m.league_shot_shares(con, game_date)
-    shares = {r["zone"]: r for r in shares_df[shares_df.team_id == opp_id].to_dict("records")}
+    shares = {r["zone"]: r for r in records(shares_df[shares_df.team_id == opp_id])}
     off = m.shot_profile(con, opp_id, game_date, "offense")
     dfn = m.shot_profile(con, opp_id, game_date, "defense")
     players = m.top_players(con, opp_id, game_date)
@@ -305,8 +329,8 @@ def compute(opponent, as_of=None):
     return {"opponent": opp["abbr"], "game_date": game_date, "blocks": blocks, "ledger": lg.values}
 
 
-def to_markdown(blocks):
-    out = []
+def to_markdown(blocks: list[Block]) -> str:
+    out: list[str] = []
     for kind, body in blocks:
         if kind == "h1":
             out.append(f"# {body}\n")
@@ -332,16 +356,25 @@ def to_markdown(blocks):
     return "\n".join(out)
 
 
-def to_pdf(blocks, path):
+def to_pdf(blocks: list[Block], path: Path) -> None:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.lib.units import inch
-    from reportlab.platypus import ListFlowable, ListItem, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+    from reportlab.platypus import (
+        Flowable,
+        ListFlowable,
+        ListItem,
+        Paragraph,
+        SimpleDocTemplate,
+        Spacer,
+        Table,
+        TableStyle,
+    )
 
     ss = getSampleStyleSheet()
     gold, purple = colors.HexColor("#E8B21F"), colors.HexColor("#3B1E6E")
-    story = []
+    story: list[Flowable] = []
     for kind, body in blocks:
         if kind == "h1":
             story += [Paragraph(body, ss["Title"]), Spacer(1, 4)]
@@ -352,7 +385,9 @@ def to_pdf(blocks, path):
         elif kind in ("ol", "ul"):
             story.append(
                 ListFlowable(
-                    [ListItem(Paragraph(t, ss["BodyText"])) for t in body], bulletType="1" if kind == "ol" else "bullet"
+                    # types-reportlab omits ListItem from ListFlowable's accepted items; reportlab accepts it.
+                    [ListItem(Paragraph(t, ss["BodyText"])) for t in body],  # type: ignore[misc]
+                    bulletType="1" if kind == "ol" else "bullet",
                 )
             )
         elif kind == "table":
@@ -381,7 +416,7 @@ def to_pdf(blocks, path):
     ).build(story)
 
 
-def main(argv=None):
+def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--opponent", required=True, help="team abbreviation, e.g. ATL")
     ap.add_argument("--as-of", help="YYYY-MM-DD; use only games before this date")
