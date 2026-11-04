@@ -4,6 +4,7 @@
 Reads the tool call as JSON on stdin. Exit 2 blocks the call and sends the
 message on stderr back to the Droid so it can change course.
 """
+
 import json
 import re
 import sys

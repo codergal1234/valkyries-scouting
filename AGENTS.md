@@ -8,6 +8,7 @@ Opponent scouting reports for the Golden State Valkyries, built from public WNBA
 | What | Command |
 |---|---|
 | Install (creates `.venv/`, installs pinned deps) | `make setup` |
+| Lint + format check (ruff) | `make lint` (auto-fix: `make format`) |
 | Download + rebuild clean tables | `make ingest` |
 | Run all data checks | `make validate` |
 | Unit tests | `make test` |
@@ -30,6 +31,11 @@ Dependencies are pinned with `==` in `requirements.txt`; change a version there,
 - `scout/check_report.py`: proves every number in a report was computed.
 - `tests/`: pytest, runs on the small fixture in `tests/fixtures/good/`.
 - `docs/requests/`: staff requests, one file each.
+
+## Code style
+
+- ruff enforces style, imports, pep8 naming (snake_case functions and variables, CapWords classes)
+  and a max cyclomatic complexity of 10. Config is in `pyproject.toml`. Lines up to 120 chars.
 
 ## Rules
 

@@ -6,7 +6,7 @@ OPP ?= ATL
 ASOF ?=
 ASOF_FLAG := $(if $(ASOF),--as-of $(ASOF),)
 
-.PHONY: setup ingest refresh validate test report check-report check fixtures break-feed restore-feed clean
+.PHONY: setup lint format ingest refresh validate test report check-report check fixtures break-feed restore-feed clean
 
 # Creates $(VENV) only when PY is the default; with PY=... it installs into that interpreter.
 setup:
@@ -14,6 +14,14 @@ ifeq ($(PY),$(VENV_PY))
 	$(BOOTSTRAP_PY) -m venv $(VENV)
 endif
 	$(PY) -m pip install -r requirements.txt
+
+lint:
+	$(PY) -m ruff check .
+	$(PY) -m ruff format --check .
+
+format:
+	$(PY) -m ruff check --fix .
+	$(PY) -m ruff format .
 
 ingest:
 	$(PY) -m scout.ingest
@@ -35,7 +43,7 @@ check-report:
 	$(PY) -m scout.check_report $$(cat /tmp/report_path.txt)
 
 # Everything a PR must pass.
-check: ingest validate test check-report
+check: lint ingest validate test check-report
 	@echo "make check: all green"
 
 fixtures:

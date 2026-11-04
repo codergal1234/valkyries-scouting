@@ -4,6 +4,7 @@
 
 Tests run against these files, so they pass without downloading the season.
 """
+
 import sys
 from pathlib import Path
 
@@ -19,6 +20,8 @@ out.mkdir(parents=True, exist_ok=True)
 con = duckdb.connect()
 ids = ", ".join(map(str, GAMES))
 for t in ("pbp", "team_box", "player_box", "schedule"):
-    con.execute(f"COPY (SELECT * FROM '{CLEAN / f'{t}.parquet'}' WHERE game_id IN ({ids})) "
-                f"TO '{out / f'{t}.parquet'}' (FORMAT parquet)")
+    con.execute(
+        f"COPY (SELECT * FROM '{CLEAN / f'{t}.parquet'}' WHERE game_id IN ({ids})) "
+        f"TO '{out / f'{t}.parquet'}' (FORMAT parquet)"
+    )
     print(t, con.execute(f"SELECT count(*) FROM '{out / f'{t}.parquet'}'").fetchone()[0])

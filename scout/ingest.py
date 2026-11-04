@@ -6,13 +6,14 @@
 Raw files are stored byte-for-byte as served and are never edited.
 All normalization (renames, filters) happens on the way to data/clean/.
 """
+
 import argparse
 import hashlib
 import json
 import sys
 import time
 import urllib.request
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import duckdb
 
@@ -50,7 +51,7 @@ def download(table, refresh=False, retries=3):
         except Exception as exc:  # noqa: BLE001
             if attempt == retries:
                 raise RuntimeError(f"download failed for {table} from {url}: {exc}") from exc
-            time.sleep(2 ** attempt)
+            time.sleep(2**attempt)
 
 
 def sha256(path):
@@ -95,7 +96,7 @@ def build_clean():
     con.execute(f"""
         COPY (SELECT * FROM raw_schedule WHERE season_type IN ({REGULAR_SEASON}, {PLAYOFFS})
               AND home_id IN (SELECT team_id FROM franchises))
-        TO '{clean_path('schedule')}' (FORMAT parquet)
+        TO '{clean_path("schedule")}' (FORMAT parquet)
     """)
     counts = {t: con.execute(f"SELECT count(*) FROM '{clean_path(t)}'").fetchone()[0] for t in SOURCES}
     return counts
@@ -109,7 +110,7 @@ def main(argv=None):
     fetched = [t for t in SOURCES if download(t, refresh=args.refresh)]
     counts = build_clean()
     manifest = {
-        "built_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        "built_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "downloaded": fetched,
         "raw_sha256": {t: sha256(raw_path(t)) for t in SOURCES},
         "clean_rows": counts,
