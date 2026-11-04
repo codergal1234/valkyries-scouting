@@ -1,0 +1,44 @@
+name: Scouting request
+description: A new stat or report section from basketball ops
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Accepted requests become a file in `docs/requests/` and are built with the
+        `new-metric` skill (`.factory/skills/new-metric/SKILL.md`).
+  - type: input
+    id: from
+    attributes:
+      label: From
+      placeholder: "basketball ops (Slack, #scouting)"
+    validations:
+      required: true
+  - type: textarea
+    id: ask
+    attributes:
+      label: The question a scout wants answered
+      description: In basketball terms, e.g. "How dangerous are they in transition?"
+    validations:
+      required: true
+  - type: textarea
+    id: numbers
+    attributes:
+      label: Numbers to show
+      description: Which numbers, for which team(s), and any league ranks.
+    validations:
+      required: true
+  - type: textarea
+    id: definition
+    attributes:
+      label: Suggested definition
+      description: How to count it from play-by-play or box scores, if you know.
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      value: |
+        - New report section, all numbers through the Ledger
+        - Definition added to the scout/metrics.py docstring
+        - Test on the fixture
+        - make check passes

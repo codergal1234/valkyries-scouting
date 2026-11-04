@@ -1,9 +1,30 @@
+# Data and generated output
 data/raw/
 data/clean/
-__pycache__/
-.pytest_cache/
-.coverage
-*.pyc
-/tmp/
 reports/*.json
+/tmp/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+build/
+dist/
 .venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets: keep real env files out, allow the template
+.env
+.env.*
+!.env.example
+
+# Editors and OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

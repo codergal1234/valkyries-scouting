@@ -58,6 +58,7 @@ Dependencies are pinned with `==` in `requirements.txt`; change a version there,
    section. Follow `.factory/skills/new-metric/SKILL.md`.
 5. Use only games before `as_of`. A report must never see its own game.
 6. Keep PRs small: one request or one fix per PR, with the `make check` output in the description.
+   Fill in `.github/pull_request_template.md`; new staff requests use the "Scouting request" issue form.
 
 ## Basketball glossary
 
