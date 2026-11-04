@@ -8,19 +8,29 @@ ruff==0.17.3
 mypy==2.4.1
 pandas-stubs==3.1.0.261029
 types-reportlab==5.0.0.20261008
+pre-commit==4.7.0
 
 # Transitive dependencies, pinned so every install resolves the same set.
 ast_serialize==0.13.1
+cfgv==3.5.0
 charset-normalizer==3.5.2
+distlib==0.4.4
+filelock==4.2.7
+identify==2.6.20
 iniconfig==2.3.1
 librt==0.16.0
 mypy_extensions==1.2.0
+nodeenv==1.12.0
 numpy==2.5.4
 packaging==26.3
 pathspec==1.1.1
 pillow==13.0.0
+platformdirs==4.14.3
 pluggy==1.7.0
 Pygments==2.21.0
 python-dateutil==4.0.0
+python-discovery==1.9.4
+PyYAML==6.0.3
 typing_extensions==4.16.0
 tzdata==2026.6
+virtualenv==21.15.5
