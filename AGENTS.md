@@ -7,13 +7,16 @@ Opponent scouting reports for the Golden State Valkyries, built from public WNBA
 
 | What | Command |
 |---|---|
-| Install | `make setup` |
+| Install (creates `.venv/`, installs pinned deps) | `make setup` |
 | Download + rebuild clean tables | `make ingest` |
 | Run all data checks | `make validate` |
 | Unit tests | `make test` |
 | Build a report | `make report OPP=ATL` (optional `ASOF=2026-10-29`) |
 | Check report numbers | `make check-report` |
 | Everything a PR must pass | `make check` |
+
+Every target runs `.venv/bin/python`. Override with `PY=`, e.g. `make check PY=/path/to/python`.
+Dependencies are pinned with `==` in `requirements.txt`; change a version there, never install ad hoc.
 
 `make check` must pass before you open a PR. If it fails, fix the cause, not the check.
 

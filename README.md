@@ -21,11 +21,14 @@ An automated opponent scouting report for the Golden State Valkyries, maintained
 ## Quickstart
 
 ```bash
-make setup
+make setup            # creates .venv/ and installs the pinned requirements.txt into it
 make check            # ingest + 13 data checks + tests + report number check
 make report OPP=ATL   # reports/ATL_2026-10-31.md and .pdf (Finals Game 7 prep)
 make report OPP=DAL ASOF=2026-09-27   # replay: first-round prep, using only earlier games
 ```
+
+Every target runs `.venv/bin/python`. To use another interpreter, pass `PY=`, for example
+`make setup check PY=/path/to/python`.
 
 ## How Factory is wired in
 
