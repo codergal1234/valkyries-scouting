@@ -1,5 +1,17 @@
-duckdb>=1.1
-pandas>=2.2
-pyarrow>=15
-reportlab>=4.0
-pytest>=8
+# Direct dependencies.
+duckdb==2.0.0
+pandas==3.1.0
+pyarrow==26.0.1
+reportlab==5.1.0
+pytest==9.2.0
+
+# Transitive dependencies, pinned so every install resolves the same set.
+charset-normalizer==3.5.2
+iniconfig==2.3.1
+numpy==2.5.4
+packaging==26.3
+pillow==13.0.0
+pluggy==1.7.0
+Pygments==2.21.0
+python-dateutil==4.0.0
+tzdata==2026.6

@@ -1,11 +1,18 @@
-PY ?= python3
+VENV ?= .venv
+VENV_PY := $(VENV)/bin/python
+PY ?= $(VENV_PY)
+BOOTSTRAP_PY ?= python3
 OPP ?= ATL
 ASOF ?=
 ASOF_FLAG := $(if $(ASOF),--as-of $(ASOF),)
 
 .PHONY: setup ingest refresh validate test report check-report check fixtures break-feed restore-feed clean
 
+# Creates $(VENV) only when PY is the default; with PY=... it installs into that interpreter.
 setup:
+ifeq ($(PY),$(VENV_PY))
+	$(BOOTSTRAP_PY) -m venv $(VENV)
+endif
 	$(PY) -m pip install -r requirements.txt
 
 ingest:
