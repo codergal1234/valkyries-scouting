@@ -13,7 +13,7 @@ Opponent scouting reports for the Golden State Valkyries, built from public WNBA
 | Git hooks on all files (large files, gitleaks, ruff, mypy) | `make hooks` |
 | Download + rebuild clean tables | `make ingest` |
 | Run all data checks | `make validate` |
-| Unit tests | `make test` |
+| Unit tests + coverage gate (after `make ingest`) | `make test` |
 | Build a report | `make report OPP=ATL` (optional `ASOF=2026-10-29`) |
 | Check report numbers | `make check-report` |
 | Everything a PR must pass | `make check` |
@@ -41,6 +41,9 @@ Dependencies are pinned with `==` in `requirements.txt`; change a version there,
   and a max cyclomatic complexity of 10. Config is in `pyproject.toml`. Lines up to 120 chars.
 - `make setup` installs pre-commit hooks (`.pre-commit-config.yaml`). Commits are blocked on files over
   500 KB, secrets found by gitleaks, ruff errors or mypy errors. Never bypass them with `--no-verify`.
+- Tests live in `tests/test_*.py` and test functions are named `test_*` (set in `pyproject.toml`).
+  `make test` prints the 10 slowest tests and fails if line coverage of `scout/` drops below
+  `fail_under` in `pyproject.toml`. Raise that number when you add tests; never lower it.
 - mypy runs in strict mode: every function needs parameter and return annotations.
   Use `scout.db.scalar` / `scout.db.records` to read query results with types.
 

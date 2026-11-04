@@ -13,3 +13,17 @@ max-complexity = 10
 strict = true
 python_version = "3.11"
 files = ["scout", "tests", "scripts", ".factory/hooks"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_functions = ["test_*"]
+addopts = ["--durations=10", "--strict-markers"]
+
+[tool.coverage.run]
+source = ["scout"]
+
+[tool.coverage.report]
+# Line coverage was 69.8% when this was set; raise it as tests are added, never lower it.
+fail_under = 69
+show_missing = true
