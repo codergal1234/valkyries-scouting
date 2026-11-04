@@ -1,0 +1,39 @@
+name: Bug report
+description: Something in the pipeline, a validator or a report is wrong
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: How to reproduce
+      description: Exact commands, e.g. `make report OPP=ATL ASOF=2026-10-29`.
+      placeholder: |
+        make setup
+        make check
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output
+      description: Paste the failing output (FAIL lines from make validate, tracebacks, wrong report numbers).
+      render: text
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - ingest (scout/ingest.py, upstream feed)
+        - validators / contracts
+        - metrics
+        - report / check_report
+        - tooling / CI
+    validations:
+      required: true
