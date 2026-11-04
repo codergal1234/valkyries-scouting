@@ -9,11 +9,13 @@ mypy==2.4.1
 pandas-stubs==3.1.0.261029
 types-reportlab==5.0.0.20261008
 pre-commit==4.7.0
+pytest-cov==7.1.0
 
 # Transitive dependencies, pinned so every install resolves the same set.
 ast_serialize==0.13.1
 cfgv==3.5.0
 charset-normalizer==3.5.2
+coverage==7.17.1
 distlib==0.4.4
 filelock==4.2.7
 identify==2.6.20

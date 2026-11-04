@@ -40,8 +40,9 @@ refresh:
 validate:
 	$(PY) -m scout.validate
 
+# Coverage includes the full-report test, which needs data/clean: run make ingest first.
 test:
-	$(PY) -m pytest -q
+	$(PY) -m pytest -q --cov
 
 report:
 	$(PY) -m scout.report --opponent $(OPP) $(ASOF_FLAG)

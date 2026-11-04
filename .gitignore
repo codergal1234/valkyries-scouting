@@ -2,6 +2,7 @@ data/raw/
 data/clean/
 __pycache__/
 .pytest_cache/
+.coverage
 *.pyc
 /tmp/
 reports/*.json
