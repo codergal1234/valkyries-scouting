@@ -18,6 +18,18 @@ An automated opponent scouting report for the Golden State Valkyries, maintained
 5. **Maintain itself.** When the feed breaks or a staffer asks for a new stat, a Droid opens
    the fix as a PR, and nothing merges unless `make check` passes.
 
+## Results so far
+
+- **Sample report:** [Finals Game 7 prep vs. Atlanta](reports/ATL_2026-10-31.pdf), built only from
+  games played before Game 7. A [first-round replay vs. Dallas](reports/DAL_2026-09-27.pdf) shows the same
+  pipeline at a different date.
+- **Agent Readiness: Level 2 (25%) to Level 3 (55%)**, measured with Factory's `/readiness-report`.
+  Every improvement shipped as a Droid-authored pull request that a human reviewed and merged
+  (#1 to #6): reproducible setup, ruff, strict mypy, pre-commit with secret scanning, a coverage
+  gate, and GitHub templates.
+- **On its first run, the Droid found a setup bug** (installs failing on externally managed Python)
+  and fixed it in PR #1.
+
 ## Quickstart
 
 ```bash
