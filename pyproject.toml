@@ -1,0 +1,10 @@
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+# E/W pycodestyle, F pyflakes, I isort, N pep8-naming, C90 mccabe complexity, B bugbear, UP pyupgrade
+select = ["E", "W", "F", "I", "N", "C90", "B", "UP"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10

@@ -8,6 +8,7 @@ Two checks:
 2. Scan: every number in the Markdown must appear in the ledger.
    Catches numbers typed into a template or written by a model.
 """
+
 import json
 import re
 import sys

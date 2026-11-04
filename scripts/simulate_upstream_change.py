@@ -7,6 +7,7 @@ Renames two play-by-play columns to camelCase, the kind of silent change a
 public feed makes without notice. A human runs this; Droids are blocked from
 writing to data/raw by the project hook.
 """
+
 import argparse
 import shutil
 import sys

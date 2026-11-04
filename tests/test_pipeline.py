@@ -57,8 +57,16 @@ def test_duplicate_rows_fail(tmp_path):
 
 
 def test_ordinals():
-    assert [ordinal(n) for n in (1, 2, 3, 4, 11, 12, 13, 21)] == \
-        ["1st", "2nd", "3rd", "4th", "11th", "12th", "13th", "21st"]
+    assert [ordinal(n) for n in (1, 2, 3, 4, 11, 12, 13, 21)] == [
+        "1st",
+        "2nd",
+        "3rd",
+        "4th",
+        "11th",
+        "12th",
+        "13th",
+        "21st",
+    ]
 
 
 def test_number_scanner_ignores_labels_and_list_markers():
@@ -70,6 +78,7 @@ def test_number_scanner_ignores_labels_and_list_markers():
 def test_full_report_passes_number_check(tmp_path, monkeypatch):
     from scout import report
     from scout.check_report import check
+
     monkeypatch.setattr(report, "REPORTS", tmp_path)
     report.main(["--opponent", "ATL", "--as-of", "2026-10-29", "--no-pdf"])
     md = next(tmp_path.glob("*.md"))

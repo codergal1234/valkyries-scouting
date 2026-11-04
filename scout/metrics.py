@@ -18,6 +18,7 @@ Definitions
   putbacks, alley-oops; mid = every other 2-point attempt
 - Clutch: 4th quarter or overtime, final 5:00 of the period, score within 5 before the play
 """
+
 import duckdb
 
 from scout.config import CLEAN
@@ -54,7 +55,7 @@ def team_table(con, as_of, season_types=(2, 3)):
                b.field_goals_made o_fgm, b.field_goals_attempted o_fga, b.three_point_field_goals_made o_tpm,
                b.total_turnovers o_tov, b.three_point_field_goals_attempted o_tpa
         FROM team_box a JOIN team_box b ON a.game_id = b.game_id AND b.team_id = a.opponent_team_id
-        WHERE a.game_date < DATE '{as_of}' AND a.season_type IN ({', '.join(map(str, season_types))})
+        WHERE a.game_date < DATE '{as_of}' AND a.season_type IN ({", ".join(map(str, season_types))})
     ), s AS (
         SELECT team_id, any_value(abbr) abbr, any_value(name) name, count(*) games,
                sum(win::INT) wins, count(*) - sum(win::INT) losses,
@@ -91,8 +92,11 @@ def team_table(con, as_of, season_types=(2, 3)):
 
 def shot_profile(con, team_id, as_of, side="offense", season_types=(2, 3)):
     """Share of field-goal attempts and FG% by zone. side='defense' = what opponents shoot against them."""
-    team_filter = (f"team_id = {team_id}" if side == "offense" else
-                   f"team_id <> {team_id} AND {team_id} IN (home_team_id, away_team_id)")
+    team_filter = (
+        f"team_id = {team_id}"
+        if side == "offense"
+        else f"team_id <> {team_id} AND {team_id} IN (home_team_id, away_team_id)"
+    )
     sql = f"""
     WITH s AS (
         SELECT CASE WHEN points_attempted = 3 THEN '3pt'
@@ -176,7 +180,7 @@ def recent_form(con, team_id, as_of, n=10, season_types=(2, 3)):
                poss(b.field_goals_attempted, b.offensive_rebounds, b.total_turnovers, b.free_throws_attempted) op
         FROM team_box a JOIN team_box b ON a.game_id = b.game_id AND b.team_id = a.opponent_team_id
         WHERE a.team_id = {team_id} AND a.game_date < DATE '{as_of}'
-          AND a.season_type IN ({', '.join(map(str, season_types))})
+          AND a.season_type IN ({", ".join(map(str, season_types))})
         ORDER BY a.game_date DESC LIMIT {n}
     )
     SELECT count(*) games, sum(win::INT) wins, count(*) - sum(win::INT) losses,
@@ -198,8 +202,8 @@ def head_to_head(con, team_id, opp_id, as_of, season_types=(2, 3)):
 
 def team_id_for(con, abbr):
     row = con.execute(
-        "SELECT DISTINCT team_id, team_display_name FROM team_box WHERE upper(team_abbreviation) = upper(?)",
-        [abbr]).fetchone()
+        "SELECT DISTINCT team_id, team_display_name FROM team_box WHERE upper(team_abbreviation) = upper(?)", [abbr]
+    ).fetchone()
     if not row:
         valid = [r[0] for r in con.execute("SELECT DISTINCT team_abbreviation FROM team_box ORDER BY 1").fetchall()]
         raise SystemExit(f"Unknown team '{abbr}'. Valid: {', '.join(valid)}")
