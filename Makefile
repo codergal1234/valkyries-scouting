@@ -1,0 +1,45 @@
+PY ?= python3
+OPP ?= ATL
+ASOF ?=
+ASOF_FLAG := $(if $(ASOF),--as-of $(ASOF),)
+
+.PHONY: setup ingest refresh validate test report check-report check fixtures break-feed restore-feed clean
+
+setup:
+	$(PY) -m pip install -r requirements.txt
+
+ingest:
+	$(PY) -m scout.ingest
+
+refresh:
+	$(PY) -m scout.ingest --refresh
+
+validate:
+	$(PY) -m scout.validate
+
+test:
+	$(PY) -m pytest -q
+
+report:
+	$(PY) -m scout.report --opponent $(OPP) $(ASOF_FLAG)
+
+check-report:
+	$(PY) -m scout.report --opponent ATL --no-pdf > /tmp/report_path.txt
+	$(PY) -m scout.check_report $$(cat /tmp/report_path.txt)
+
+# Everything a PR must pass.
+check: ingest validate test check-report
+	@echo "make check: all green"
+
+fixtures:
+	$(PY) scripts/make_fixtures.py
+
+# Demo only: simulate an upstream schema change, then undo it.
+break-feed:
+	$(PY) scripts/simulate_upstream_change.py
+
+restore-feed:
+	$(PY) scripts/simulate_upstream_change.py --restore
+
+clean:
+	rm -rf data/clean reports/*.md reports/*.pdf reports/*.json

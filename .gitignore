@@ -1,0 +1,8 @@
+data/raw/
+data/clean/
+__pycache__/
+.pytest_cache/
+*.pyc
+/tmp/
+reports/*.json
+.venv/

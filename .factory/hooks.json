@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Create|Edit|ApplyPatch|Execute",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$FACTORY_PROJECT_DIR/.factory/hooks/protect_raw_data.py\""
+          }
+        ]
+      }
+    ]
+  }
+}

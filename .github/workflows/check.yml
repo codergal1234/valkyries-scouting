@@ -1,0 +1,42 @@
+name: check
+
+on:
+  pull_request:
+  schedule:
+    - cron: "17 13 * * *"   # nightly ingest + validate (13:17 UTC)
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: make setup
+      - run: make check
+
+  droid-review:
+    if: github.event_name == 'pull_request'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Install Droid CLI
+        run: curl -fsSL https://app.factory.ai/cli | sh
+      - name: Review with the reviewer droid
+        env:
+          FACTORY_API_KEY: ${{ secrets.FACTORY_API_KEY }}
+        run: |
+          git diff origin/${{ github.base_ref }}...HEAD > /tmp/pr.diff
+          droid exec --auto low "Act as the reviewer custom droid in .factory/droids/reviewer.md. \
+            Review the diff in /tmp/pr.diff against AGENTS.md. Do not edit files." > /tmp/review.md
+      - name: Post review
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh pr comment ${{ github.event.pull_request.number }} --body-file /tmp/review.md
