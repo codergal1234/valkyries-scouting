@@ -18,7 +18,7 @@ jobs:
       - run: make check
 
   droid-review:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.actor != 'dependabot[bot]'
     needs: check
     runs-on: ubuntu-latest
     permissions:
