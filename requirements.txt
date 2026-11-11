@@ -4,10 +4,10 @@ pandas==3.1.0
 pyarrow==26.0.1
 reportlab==5.1.0
 pytest==9.2.0
-ruff==0.17.3
+ruff==0.17.4
 mypy==2.4.1
 pandas-stubs==3.1.0.261029
-types-reportlab==5.0.0.20261008
+types-reportlab==5.1.0.20261104
 pre-commit==4.7.0
 pytest-cov==7.1.0
 
@@ -15,7 +15,7 @@ pytest-cov==7.1.0
 ast_serialize==0.13.1
 cfgv==3.5.0
 charset-normalizer==3.5.2
-coverage==7.17.1
+coverage==7.17.2
 distlib==0.4.4
 filelock==4.2.7
 identify==2.6.20
