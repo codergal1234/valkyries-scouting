@@ -328,7 +328,7 @@ def test_season_type_filters_both_points_and_rank() -> None:
 
 
 @pytest.mark.parametrize("rank,required", [(1, True), (4, True), (5, False), (None, False)])
-def test_guard_transition_slot_and_legacy_api(rank: int | None, required: bool) -> None:
+def test_guard_transition_slot_and_default_api(rank: int | None, required: bool) -> None:
     # Several existing candidates score four; a fourth-ranked transition adjustment must survive.
     opp: pd.Series[Any] = pd.Series(
         {
@@ -344,11 +344,11 @@ def test_guard_transition_slot_and_legacy_api(rank: int | None, required: bool) 
     )
     shares = {"rim": {"share_rank": 1, "share": 40}, "3pt": {"share_rank": 1, "share": 40}}
     stats = {"offense_rank": rank, "offense_share": 20}
-    keys = guard_keys(Ledger(), opp, None, shares, [], {"games": 0}, 13, stats)
+    keys = guard_keys(Ledger(), opp, shares, [], 13, stats)
     assert len(keys) == 3
     assert any("Get back early" in k for k in keys) == required
-    legacy = guard_keys(Ledger(), opp, None, shares, [], {"games": 0}, 13)
-    assert not any("Get back early" in k for k in legacy)
+    default = guard_keys(Ledger(), opp, shares, [], 13)
+    assert not any("Get back early" in k for k in default)
 
 
 def test_transition_report_values_and_no_sample() -> None:

@@ -1,7 +1,7 @@
 # Valkyries scouting factory
 
 An automated opponent scouting report for the Golden State Valkyries, maintained by
-[Factory](https://factory.ai) Droids. 
+[Factory](https://factory.ai) Droids.
 
 > Data: ESPN via [SportsDataverse](https://github.com/sportsdataverse)
 
@@ -14,6 +14,8 @@ An automated opponent scouting report for the Golden State Valkyries, maintained
 3. **Compute** ratings, four factors, shot zones, clutch, top players and head-to-head in SQL.
 4. **Report** to Markdown + PDF. Every number goes through a ledger, and
    `check_report` proves no number in the text was typed by hand or invented by a model.
+   Keys are split into “When they have the ball” (our defensive priorities) and
+   “When we have the ball” (our offensive priorities), with up to three qualifying keys each.
 5. **Maintain itself.** When the feed breaks or a staffer asks for a new stat, a Droid opens
    the fix as a PR, and nothing merges unless `make check` passes.
 

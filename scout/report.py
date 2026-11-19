@@ -82,14 +82,12 @@ def find_game(con: duckdb.DuckDBPyConnection, opp_id: int, as_of: str | None = N
 def guard_keys(
     lg: Ledger,
     opp: "pd.Series[Any]",
-    gs_shots: object,
     shares: dict[str, Row],
     players: list[Row],
-    cl: Row,
     n_teams: int,
     transition_stats: Row | None = None,
 ) -> list[str]:
-    """Rule-based 'how to guard them' points. Each has an extremity score; the top 3 are used."""
+    """Defensive keys about their offense, ranked by extremity; return at most three."""
     cands: list[tuple[Any, str]] = []
     rim = shares.get("rim")
     three = shares.get("3pt")
@@ -144,14 +142,6 @@ def guard_keys(
                 f"({lg.rank('g.tov_rank', opp['tov_rank'])} in ball security).",
             )
         )
-    if opp["opp_tov_rank"] <= 4:
-        cands.append(
-            (
-                5 - opp["opp_tov_rank"],
-                f"Value the ball. Their defense forces turnovers on {lg.num('g.forced', opp['opp_tov_pct'])}% of "
-                f"possessions ({lg.rank('g.forced_rank', opp['opp_tov_rank'])}).",
-            )
-        )
     if players and players[0]["pts_share"] >= 18:
         p = players[0]
         cands.append(
@@ -161,17 +151,24 @@ def guard_keys(
                 f"{lg.num('g.star_share', p['pts_share'])}% of their points.",
             )
         )
-    if cl["games"] >= 5 and cl["net"] >= 15:
-        cands.append(
-            (
-                2,
-                f"Don't let it get close late. They are {lg.num('g.clutch_net', cl['net'], '{:+.0f}')} in clutch "
-                f"time across {lg.num('g.clutch_games', cl['games'], '{:.0f}')} close games.",
-            )
-        )
     # Reserve a slot: a required top-four transition adjustment must not be displaced
     # by the otherwise equally important paint/rebounding/fouling candidates.
     cands.extend(_transition_guard(lg, transition_stats))
+    cands.sort(key=lambda c: -c[0])
+    return [c[1] for c in cands[:3]]
+
+
+def offensive_keys(lg: Ledger, opp: "pd.Series[Any]") -> list[str]:
+    """Offensive keys about their defense; return at most three qualifying rules."""
+    cands: list[tuple[Any, str]] = []
+    if opp["opp_tov_rank"] <= 4:
+        cands.append(
+            (
+                5 - opp["opp_tov_rank"],
+                f"Value the ball. Their defense forces turnovers on {lg.num('o.forced', opp['opp_tov_pct'])}% of "
+                f"possessions ({lg.rank('o.forced_rank', opp['opp_tov_rank'])}).",
+            )
+        )
     cands.sort(key=lambda c: -c[0])
     return [c[1] for c in cands[:3]]
 
@@ -185,7 +182,7 @@ def _transition_guard(lg: Ledger, stats: Row | None) -> list[tuple[int, str]]:
             f"Get back early: protect the rim and stop the ball. "
             f"Transition supplies {lg.num('g.transition_share', stats['offense_share'])}% of their points "
             f"({lg.rank('g.transition_rank', stats['offense_rank'])} in the league); "
-            f"avoid live-ball turnovers and balance the offensive glass.",
+            f"locate runners and match up before they reach the paint.",
         )
     ]
 
@@ -269,8 +266,16 @@ def compute(opponent: str, as_of: str | None = None) -> Report:
         )
     )
 
-    blocks.append(("h2", "How to guard them"))
-    blocks.append(("ol", guard_keys(lg, opp, None, shares, players, cl, n, opp_transition)))
+    blocks.append(("h2", "When they have the ball"))
+    defense_keys = guard_keys(lg, opp, shares, players, n, opp_transition)
+    blocks.append(
+        ("ol", defense_keys) if defense_keys else ("p", "No standout defensive key is triggered by the current rules.")
+    )
+    blocks.append(("h2", "When we have the ball"))
+    offense_keys = offensive_keys(lg, opp)
+    blocks.append(
+        ("ol", offense_keys) if offense_keys else ("p", "No standout offensive key is triggered by the current rules.")
+    )
 
     blocks.append(("h2", "Team profile"))
     blocks.append(
