@@ -1,6 +1,6 @@
 # Direct dependencies.
 duckdb==2.0.0
-pandas==3.1.0
+pandas==3.1.1
 pyarrow==26.0.1
 reportlab==5.1.0
 pytest==9.2.0
@@ -17,7 +17,7 @@ cfgv==3.5.0
 charset-normalizer==3.5.2
 coverage==7.17.1
 distlib==0.4.4
-filelock==4.2.7
+filelock==4.2.9
 identify==2.6.20
 iniconfig==2.3.1
 librt==0.16.0
@@ -27,12 +27,12 @@ numpy==2.5.4
 packaging==26.3
 pathspec==1.1.1
 pillow==13.0.0
-platformdirs==4.14.3
+platformdirs==4.14.5
 pluggy==1.7.0
 Pygments==2.21.0
 python-dateutil==4.0.0
-python-discovery==1.9.4
+python-discovery==1.9.5
 PyYAML==6.0.3
 typing_extensions==4.16.0
 tzdata==2026.6
-virtualenv==21.15.5
+virtualenv==21.15.6
