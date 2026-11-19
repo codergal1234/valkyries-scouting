@@ -41,6 +41,21 @@ def test_renamed_column_fails_contract(tmp_path: Path) -> None:
     assert "contract:pbp" in bad
 
 
+@pytest.mark.parametrize(
+    "sql,detail",
+    [
+        ("SELECT * EXCLUDE (text) FROM '{src}'", "missing column 'text'"),
+        ("SELECT * REPLACE (1::INTEGER AS text) FROM '{src}'", "text is INTEGER, expected VARCHAR"),
+    ],
+)
+def test_pbp_text_required_by_contract(tmp_path: Path, sql: str, detail: str) -> None:
+    d = _copy(tmp_path)
+    _rewrite(d / "pbp.parquet", sql)
+    result = next(r for r in validate.run(d) if r.name == "contract:pbp")
+    assert not result.ok
+    assert detail in result.detail
+
+
 def test_ingest_normalizes_renamed_pbp_columns(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     d = _copy(tmp_path)
     p = d / "pbp.parquet"
@@ -98,6 +113,7 @@ def test_full_report_passes_number_check(tmp_path: Path, monkeypatch: pytest.Mon
     from scout.check_report import check
 
     monkeypatch.setattr(report, "REPORTS", tmp_path)
-    report.main(["--opponent", "ATL", "--as-of", "2026-10-29", "--no-pdf"])
+    report.main(["--opponent", "ATL", "--as-of", "2026-10-29"])
     md = next(tmp_path.glob("*.md"))
     assert check(md) == []
+    assert md.with_suffix(".pdf").read_bytes().startswith(b"%PDF-")
