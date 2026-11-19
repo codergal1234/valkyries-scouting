@@ -49,7 +49,10 @@ Dependencies are pinned with `==` in `requirements.txt`; change a version there,
 
 ## Rules
 
-1. Never write to `data/raw/`. It is exactly what upstream served. A hook blocks it.
+1. Do not hand-edit `data/raw/`; preserve the upstream bytes. `make ingest` is the official
+   downloader, and `make break-feed` / `make restore-feed` are sanctioned demo commands that
+   intentionally simulate and restore an upstream change. Fix schema changes in
+   `scout/ingest.py`, not by editing raw files.
 2. Never weaken a validator, loosen a contract, or delete a test to make a check pass.
    If upstream changed, adapt in `scout/ingest.py` (usually `COLUMN_ALIASES`).
 3. Every number printed in a report goes through `Ledger.num`, `Ledger.rank` or `Ledger.text`.
