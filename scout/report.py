@@ -87,6 +87,7 @@ def guard_keys(
     players: list[Row],
     cl: Row,
     n_teams: int,
+    transition_stats: Row | None = None,
 ) -> list[str]:
     """Rule-based 'how to guard them' points. Each has an extremity score; the top 3 are used."""
     cands: list[tuple[Any, str]] = []
@@ -168,8 +169,70 @@ def guard_keys(
                 f"time across {lg.num('g.clutch_games', cl['games'], '{:.0f}')} close games.",
             )
         )
+    # Reserve a slot: a required top-four transition adjustment must not be displaced
+    # by the otherwise equally important paint/rebounding/fouling candidates.
+    cands.extend(_transition_guard(lg, transition_stats))
     cands.sort(key=lambda c: -c[0])
     return [c[1] for c in cands[:3]]
+
+
+def _transition_guard(lg: Ledger, stats: Row | None) -> list[tuple[int, str]]:
+    if stats is None or stats["offense_rank"] is None or stats["offense_rank"] > 4:
+        return []
+    return [
+        (
+            100 + 5 - int(stats["offense_rank"]),
+            f"Get back early: protect the rim and stop the ball. "
+            f"Transition supplies {lg.num('g.transition_share', stats['offense_share'])}% of their points "
+            f"({lg.rank('g.transition_rank', stats['offense_rank'])} in the league); "
+            f"avoid live-ball turnovers and balance the offensive glass.",
+        )
+    ]
+
+
+def transition_blocks(lg: Ledger, opponent: str, opp: Row, gs: Row) -> list[Block]:
+    rows = [["", lg.text("transition.opponent", opponent), "Rank", lg.text("transition.client", CLIENT_ABBR), "Rank"]]
+    for side, label in (("offense", "Scored"), ("defense", "Allowed")):
+        share, ppp, rank = f"{side}_share", f"{side}_ppp", f"{side}_rank"
+        values: list[str] = [f"{label}: share of points"]
+        efficiency: list[str] = [f"{label}: points per transition possession"]
+        samples: list[str] = [f"{label}: transition possessions"]
+        for key, stats in (("opp", opp), ("gs", gs)):
+            prefix = f"transition.{key}.{side}"
+            values.extend(
+                [
+                    lg.num(f"{prefix}.share", stats[share]) + "%"
+                    if stats[share] is not None
+                    else lg.text(f"{prefix}.share", "N/A"),
+                    lg.rank(f"{prefix}.rank", stats[rank])
+                    if stats[rank] is not None
+                    else lg.text(f"{prefix}.rank", "N/A"),
+                ]
+            )
+            efficiency.extend(
+                [
+                    lg.num(f"{prefix}.ppp", stats[ppp], "{:.2f}")
+                    if stats[ppp] is not None
+                    else lg.text(f"{prefix}.ppp", "N/A"),
+                    "",
+                ]
+            )
+            samples.extend([lg.num(f"{prefix}.possessions", stats[f"{side}_possessions"], "{:.0f}"), ""])
+        rows.extend([values, efficiency, samples])
+    return [
+        ("h2", "Transition"),
+        ("table", rows),
+        (
+            "p",
+            f"Clock-based proxy: attempts or shooting fouls within {lg.num('transition.window', 8, '{:.0f}')} "
+            "seconds of a player defensive rebound or opponent turnover; linked shooting-foul free throws included. "
+            "Each acquisition counts once, including misses, not once per shot. Turnovers without an attempt and "
+            "later half-court points are excluded; stoppages end the window. Dead-ball turnovers can qualify "
+            "because the clock cannot measure inbound delay; team rebounds and unrelated free throws are excluded. "
+            "Share uses all points scored or allowed; lower allowed-share rank is better. "
+            "N/A means no sample for that rate.",
+        ),
+    ]
 
 
 def compute(opponent: str, as_of: str | None = None) -> Report:
@@ -192,6 +255,8 @@ def compute(opponent: str, as_of: str | None = None) -> Report:
     cl = m.clutch(con, opp_id, game_date)
     form = m.recent_form(con, opp_id, game_date)
     h2h = m.head_to_head(con, CLIENT_TEAM_ID, opp_id, game_date)
+    opp_transition = m.transition(con, opp_id, game_date)
+    gs_transition = m.transition(con, CLIENT_TEAM_ID, game_date)
 
     blocks.append(("h1", f"Scouting report: {lg.text('opp.name', opp_name)}"))
     blocks.append(
@@ -205,7 +270,7 @@ def compute(opponent: str, as_of: str | None = None) -> Report:
     )
 
     blocks.append(("h2", "How to guard them"))
-    blocks.append(("ol", guard_keys(lg, opp, None, shares, players, cl, n)))
+    blocks.append(("ol", guard_keys(lg, opp, None, shares, players, cl, n, opp_transition)))
 
     blocks.append(("h2", "Team profile"))
     blocks.append(
@@ -241,6 +306,8 @@ def compute(opponent: str, as_of: str | None = None) -> Report:
             ]
         )
     blocks.append(("table", rows))
+
+    blocks.extend(transition_blocks(lg, opp["abbr"], opp_transition, gs_transition))
 
     blocks.append(("h2", "Shot profile"))
     rows = [["Zone", "Share of their shots", "Their FG%", "Share allowed", "FG% allowed"]]

@@ -17,6 +17,25 @@ Definitions
 - Shot zones (play-by-play): 3 = any 3-point attempt; rim = layups, dunks, tips,
   putbacks, alley-oops; mid = every other 2-point attempt
 - Clutch: 4th quarter or overtime, final 5:00 of the period, score within 5 before the play
+- Transition (clock-based proxy): FGA or shooting foul at elapsed clock time 0 through
+  8 seconds after a player defensive rebound or opponent turnover in the same game/period.
+  Turnovers include dead-ball turnovers (including Traveling); the clock cannot measure
+  inbound delay. Team/dead-ball rebounds do not start transition. Fouls, timeouts,
+  substitutions, reviews, jump balls, violations, opponent offensive events and made
+  baskets end the window. Own offensive rebounds/multiple misses retain the original
+  acquisition; never restart its clock. An immediately linked same-clock shooting foul
+  after a qualifying made basket preserves the and-one.
+  Ordinary FTs link only to the latest basketball event being a qualifying opponent
+  shooting foul, at the same clock, allowing substitutions/timeouts/reviews during
+  administration and same-clock team rebounds after non-final FTs. Technical, flagrant,
+  clear-path and bonus/non-shooting FTs are excluded.
+  Points = qualifying made FGs plus linked made FTs; possession denominator = distinct
+  (game, period, acquiring team, acquisition play) with a qualifying FGA (misses included)
+  or shooting foul. This is an attempted-transition possession proxy, not all fast breaks:
+  turnovers before an attempt and later half-court scoring are excluded. Share = these
+  points / all box-score points scored (or allowed) * 100. PPP uses only these points.
+  Offense share ranks descending, defense share ascending; ties share rank, across teams
+  with eligible games. No attempts: PPP is undefined; no games: share/rank undefined.
 """
 
 from collections.abc import Sequence
@@ -41,7 +60,7 @@ def connect() -> duckdb.DuckDBPyConnection:
 
 
 def _games(as_of: str, season_types: Sequence[int] = (2, 3)) -> str:
-    st = ", ".join(str(s) for s in season_types)
+    st = ", ".join(str(s) for s in season_types) or "NULL"
     return f"game_date < DATE '{as_of}' AND season_type IN ({st})"
 
 
@@ -92,6 +111,115 @@ def team_table(con: duckdb.DuckDBPyConnection, as_of: str, season_types: Sequenc
     FROM s ORDER BY net DESC
     """
     return con.execute(sql).df()
+
+
+def transition(
+    con: duckdb.DuckDBPyConnection,
+    team_id: int,
+    as_of: str,
+    season_types: Sequence[int] = (2, 3),
+) -> Row:
+    """Offense/defense transition points, attempted possessions, shares, PPP and league ranks."""
+    sql = f"""
+    WITH games AS (
+        SELECT * FROM team_box WHERE {_games(as_of, season_types)}
+    ), ordered AS (
+        SELECT *, lag(type_text) OVER w previous_type,
+                  lag(start_quarter_seconds_remaining) OVER w previous_secs
+        FROM pbp WHERE {_games(as_of, season_types)}
+        WINDOW w AS (PARTITION BY game_id ORDER BY game_play_number)
+    ), events AS (
+        SELECT p.*, g.team_id owner, g.opponent_team_id defender,
+               start_quarter_seconds_remaining secs,
+               shooting_play AND points_attempted IN (2, 3) fga,
+               regexp_matches(type_text, '^Free Throw - [123] of [123]$') ordinary_ft,
+               (type_text = 'Defensive Rebound' AND p.team_id = g.team_id
+                 AND NOT regexp_matches(coalesce(text, ''), '(?i)team rebound'))
+               OR (p.team_id = g.opponent_team_id
+                   AND (regexp_matches(type_text, '(?i)turnover') AND type_text <> 'No Turnover'
+                        OR type_text = 'Traveling')) acquisition,
+               regexp_matches(type_text, '(?i)(foul|timeout|substitution|review|challenge|jump.?ball|'
+                                          'violation|turnover|traveling|technical|lane|ejection|'
+                                          'kicked ball|end period|end game|delay)')
+                 OR (shooting_play AND (scoring_play OR p.team_id <> g.team_id
+                                        OR points_attempted = 1))
+                 OR (type_text LIKE '%Rebound' AND p.team_id <> g.team_id)
+                 OR (type_text = 'Defensive Rebound') stop,
+               NOT regexp_matches(type_text, '(?i)(^Free Throw|substitution|timeout|review|challenge)')
+                 AND NOT (type_text = 'Offensive Rebound'
+                          AND regexp_matches(coalesce(text, ''), '(?i)team rebound')
+                          AND regexp_matches(coalesce(previous_type, ''), '^Free Throw - (1 of [23]|2 of 3)$')
+                          AND previous_secs = start_quarter_seconds_remaining) link_event
+        FROM ordered p JOIN games g USING (game_id)
+        WHERE p.game_date < DATE '{as_of}' AND p.season_type IN ({", ".join(map(str, season_types)) or "NULL"})
+    ), state AS (
+        SELECT *,
+            max(CASE WHEN acquisition THEN game_play_number END) OVER w anchor,
+            max(CASE WHEN stop THEN game_play_number END) OVER w last_stop,
+            max(CASE WHEN link_event THEN game_play_number END) OVER w last_link
+        FROM events
+        WINDOW w AS (PARTITION BY game_id, period_number, owner ORDER BY game_play_number
+                     ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING)
+    ), eligible AS (
+        SELECT s.*, a.secs - s.secs elapsed,
+               s.anchor >= coalesce(s.last_stop, s.anchor) AND a.secs - s.secs BETWEEN 0 AND 8 fast
+        FROM state s LEFT JOIN events a
+          ON s.game_id = a.game_id AND s.period_number = a.period_number
+          AND s.owner = a.owner AND s.anchor = a.game_play_number
+    ), shots AS (
+        SELECT * FROM eligible WHERE fast AND fga AND team_id = owner
+    ), fouls AS (
+        SELECT f.*, coalesce(s.anchor, f.anchor) possession_anchor
+        FROM eligible f LEFT JOIN shots s
+          ON f.game_id = s.game_id AND f.period_number = s.period_number AND f.owner = s.owner
+          AND f.last_link = s.game_play_number AND f.secs = s.secs AND s.scoring_play
+          AND f.last_stop = s.game_play_number
+        WHERE f.type_text = 'Shooting Foul' AND f.team_id = f.defender
+          AND (f.fast OR s.game_play_number IS NOT NULL)
+    ), attempts AS (
+        SELECT game_id, period_number, owner, defender, anchor, score_value pts FROM shots
+        UNION ALL
+        SELECT game_id, period_number, owner, defender, possession_anchor, 0 FROM fouls
+        UNION ALL
+        SELECT t.game_id, t.period_number, t.owner, t.defender, f.possession_anchor, t.score_value
+        FROM state t JOIN fouls f
+          ON t.game_id = f.game_id AND t.period_number = f.period_number AND t.owner = f.owner
+          AND t.last_link = f.game_play_number AND t.secs = f.secs
+        WHERE t.ordinary_ft AND t.team_id = t.owner
+    ), possessions AS (
+        SELECT game_id, period_number, owner, defender, anchor, sum(pts) pts
+        FROM attempts GROUP BY ALL
+    ), offense AS (
+        SELECT owner team_id, sum(pts) pts, count(*) samples FROM possessions GROUP BY owner
+    ), defense AS (
+        SELECT defender team_id, sum(pts) pts, count(*) samples FROM possessions GROUP BY defender
+    ), totals AS (
+        SELECT team_id, sum(team_score) pts, sum(opponent_team_score) allowed
+        FROM games GROUP BY team_id
+    ), rates AS (
+        SELECT t.team_id, coalesce(o.pts, 0) offense_points, coalesce(o.samples, 0) offense_possessions,
+               100.0 * coalesce(o.pts, 0) / nullif(t.pts, 0) offense_share,
+               o.pts / nullif(o.samples, 0) offense_ppp,
+               coalesce(d.pts, 0) defense_points, coalesce(d.samples, 0) defense_possessions,
+               100.0 * coalesce(d.pts, 0) / nullif(t.allowed, 0) defense_share,
+               d.pts / nullif(d.samples, 0) defense_ppp
+        FROM totals t LEFT JOIN offense o USING (team_id) LEFT JOIN defense d USING (team_id)
+    ), ranked AS (
+        SELECT *, rank() OVER (ORDER BY offense_share DESC NULLS LAST) offense_rank,
+                  rank() OVER (ORDER BY defense_share ASC NULLS LAST) defense_rank
+        FROM rates
+    )
+    SELECT coalesce(r.offense_points, 0) offense_points,
+           coalesce(r.offense_possessions, 0) offense_possessions,
+           coalesce(r.defense_points, 0) defense_points,
+           coalesce(r.defense_possessions, 0) defense_possessions,
+           r.offense_share, r.offense_ppp, r.offense_rank,
+           r.defense_share, r.defense_ppp, r.defense_rank
+    FROM (SELECT {team_id} team_id) requested LEFT JOIN ranked r USING (team_id)
+    """
+    row = records(con.execute(sql).df())[0]
+    # DuckDB/pandas represents nullable numeric values as NaN; expose plain None to callers.
+    return {k: None if v != v else v for k, v in row.items()}
 
 
 def shot_profile(
