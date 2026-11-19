@@ -210,6 +210,26 @@ def test_shooting_foul_free_throws(elapsed: float, points: int) -> None:
         assert result["offense_possessions"] == bool(points)
 
 
+@pytest.mark.parametrize("technical", ["Technical Foul", "Double Technical Foul", "Defensive 3-Seconds Technical"])
+@pytest.mark.parametrize("technical_shooter", [GS, ATL])
+def test_technical_foul_preserves_pending_shooting_free_throws(technical: str, technical_shooter: int) -> None:
+    with synthetic(
+        [
+            (100, GS, "Defensive Rebound", 0, 0),
+            (98, ATL, "Shooting Foul", 0, 0),
+            (98, GS, "Free Throw - 1 of 2", 1, 1),
+            (98, ATL, technical, 0, 0),
+            (98, technical_shooter, "Free Throw - Technical", 1, 1),
+            (98, GS, "Free Throw - 2 of 2", 1, 1),
+            (97, GS, "Jump Shot", 2, 2),  # interruption must not reopen live transition
+        ]
+    ) as con:
+        stats = transition(con, GS, "2026-10-29")
+        assert (stats["offense_points"], stats["offense_possessions"], stats["offense_ppp"]) == (2, 1, 2)
+        assert stats["defense_points"] == 0
+        assert transition(con, ATL, "2026-10-29")["defense_points"] == 2
+
+
 def test_and_one_counted_once_and_bonus_excluded() -> None:
     with synthetic(
         [

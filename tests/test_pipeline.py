@@ -113,6 +113,7 @@ def test_full_report_passes_number_check(tmp_path: Path, monkeypatch: pytest.Mon
     from scout.check_report import check
 
     monkeypatch.setattr(report, "REPORTS", tmp_path)
-    report.main(["--opponent", "ATL", "--as-of", "2026-10-29", "--no-pdf"])
+    report.main(["--opponent", "ATL", "--as-of", "2026-10-29"])
     md = next(tmp_path.glob("*.md"))
     assert check(md) == []
+    assert md.with_suffix(".pdf").read_bytes().startswith(b"%PDF-")

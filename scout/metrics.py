@@ -28,7 +28,7 @@ Definitions
   An immediately linked same-clock shooting foul
   after a qualifying made basket preserves the and-one.
   Ordinary FTs link only to the latest basketball event being a qualifying opponent
-  shooting foul, at the same clock, allowing substitutions/timeouts/reviews during
+  shooting foul, at the same clock, allowing substitutions/timeouts/reviews/technical fouls during
   administration and same-clock team rebounds after non-final FTs. Technical, flagrant,
   clear-path and bonus/non-shooting FTs are excluded.
   Points = qualifying made FGs plus linked made FTs; possession denominator = distinct
@@ -149,7 +149,7 @@ def transition(
                  OR (type_text = 'Offensive Rebound'
                      AND regexp_matches(coalesce(text, ''), '(?i)team rebound'))
                  OR (type_text = 'Defensive Rebound') stop,
-               NOT regexp_matches(type_text, '(?i)(^Free Throw|substitution|timeout|review|challenge)')
+               NOT regexp_matches(type_text, '(?i)(^Free Throw|substitution|timeout|review|challenge|technical)')
                  AND NOT (type_text = 'Offensive Rebound'
                           AND regexp_matches(coalesce(text, ''), '(?i)team rebound')
                           AND regexp_matches(coalesce(previous_type, ''), '^Free Throw - (1 of [23]|2 of 3)$')
