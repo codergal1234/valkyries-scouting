@@ -1,15 +1,14 @@
 # Valkyries scouting factory
 
 An automated opponent scouting report for the Golden State Valkyries, maintained by
-[Factory](https://factory.ai) Droids. Built as an FDE-style prospect demo on public data.
+[Factory](https://factory.ai) Droids. 
 
-> Independent project. Not affiliated with or endorsed by the Golden State Valkyries or the WNBA.
-> Data: ESPN via [SportsDataverse](https://github.com/sportsdataverse) (public).
+> Data: ESPN via [SportsDataverse](https://github.com/sportsdataverse)
 
 ## What it does
 
 1. **Ingest** the 2026 WNBA season (play-by-play, box scores, schedule). Raw files are kept
-   exactly as served; normalization happens on the way to `data/clean/`.
+   exactly as served, and normalization happens on the way to `data/clean/`.
 2. **Validate** with data contracts plus basketball invariants. The key one: play-by-play
    points must sum to the box score for every team in every game (706 of 706 pass).
 3. **Compute** ratings, four factors, shot zones, clutch, top players and head-to-head in SQL.
