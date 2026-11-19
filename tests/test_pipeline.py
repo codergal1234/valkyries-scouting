@@ -4,7 +4,7 @@ from pathlib import Path
 import duckdb
 import pytest
 
-from scout import validate
+from scout import ingest, validate
 from scout.check_report import tokens
 from scout.config import CLEAN, FIXTURES
 from scout.report import ordinal
@@ -39,6 +39,23 @@ def test_renamed_column_fails_contract(tmp_path: Path) -> None:
     _rewrite(p, "SELECT * RENAME (score_value AS scoreValue) FROM '{src}'")
     bad = failed(validate.run(d))
     assert "contract:pbp" in bad
+
+
+def test_ingest_normalizes_renamed_pbp_columns(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    d = _copy(tmp_path)
+    p = d / "pbp.parquet"
+    _rewrite(
+        p,
+        "SELECT * RENAME (scoring_play AS scoringPlay, score_value AS scoreValue) FROM '{src}'",
+    )
+    monkeypatch.setattr(ingest, "raw_path", lambda _: p)
+
+    con = duckdb.connect()
+    normalized = p.with_suffix(".normalized.parquet")
+    con.execute(f"COPY ({ingest.select_with_aliases(con, 'pbp')}) TO '{normalized}' (FORMAT parquet)")
+    normalized.replace(p)
+
+    assert failed(validate.run(d)) == set()
 
 
 def test_score_mismatch_fails_invariant(tmp_path: Path) -> None:

@@ -24,7 +24,10 @@ from scout.db import scalar
 # Upstream column name -> name the pipeline expects.
 # When the source renames a column, add the mapping here instead of touching raw data.
 COLUMN_ALIASES: dict[str, dict[str, str]] = {
-    "pbp": {},
+    "pbp": {
+        "scoringPlay": "scoring_play",
+        "scoreValue": "score_value",
+    },
     "team_box": {},
     "player_box": {},
     "schedule": {},
