@@ -221,13 +221,9 @@ def transition_blocks(lg: Ledger, opponent: str, opp: Row, gs: Row) -> list[Bloc
         ("table", rows),
         (
             "p",
-            f"Clock-based proxy: attempts or shooting fouls within {lg.num('transition.window', 8, '{:.0f}')} "
-            "seconds of a player defensive rebound or opponent turnover; linked shooting-foul free throws included. "
-            "Each acquisition counts once, including misses, not once per shot. Turnovers without an attempt and "
-            "later half-court points are excluded; stoppages end the window. Dead-ball turnovers can qualify "
-            "because the clock cannot measure inbound delay; team rebounds and unrelated free throws are excluded. "
-            "Share uses all points scored or allowed; lower allowed-share rank is better. "
-            "N/A means no sample for that rate.",
+            f"Transition = shots taken within {lg.num('transition.window', 8, '{:.0f}')} seconds of a defensive "
+            "rebound or a steal/turnover, plus free throws from fouls on those shots. "
+            "Share = transition points as a percent of all points. For points allowed, a lower rank is better.",
         ),
     ]
 

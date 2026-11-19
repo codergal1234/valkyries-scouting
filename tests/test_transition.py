@@ -357,6 +357,13 @@ def test_transition_report_values_and_no_sample() -> None:
         stats = transition(con, GS, "2026-10-29")
         md = to_markdown(transition_blocks(lg, "ATL", stats, stats))
         assert "## Transition" in md
+        assert (
+            "Transition = shots taken within 8 seconds of a defensive rebound or a steal/turnover, "
+            "plus free throws from fouls on those shots. Share = transition points as a percent of all points. "
+            "For points allowed, a lower rank is better."
+        ) in md
+        assert lg.values["transition.window"] == "8"
+        assert "Clock-based proxy" not in md
         assert lg.values["transition.opp.offense.share"] == "10.9"
         assert lg.values["transition.gs.defense.ppp"] == "0.45"
         assert lg.values["transition.gs.offense.possessions"] == "8"

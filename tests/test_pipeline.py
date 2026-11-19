@@ -4,9 +4,9 @@ from pathlib import Path
 import duckdb
 import pytest
 
-from scout import ingest, validate
+from scout import ingest, metrics, validate
 from scout.check_report import tokens
-from scout.config import CLEAN, FIXTURES
+from scout.config import FIXTURES
 from scout.report import ordinal
 
 GOOD = FIXTURES / "good"
@@ -107,12 +107,12 @@ def test_number_scanner_ignores_labels_and_list_markers() -> None:
     assert tokens(text) == ["2026-10-29", "42.7", "2nd", "15", "+6.5"]
 
 
-@pytest.mark.skipif(not (CLEAN / "team_box.parquet").exists(), reason="needs `make ingest`")
 def test_full_report_passes_number_check(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     from scout import report
     from scout.check_report import check
 
     monkeypatch.setattr(report, "REPORTS", tmp_path)
+    monkeypatch.setattr(metrics, "CLEAN", GOOD)
     report.main(["--opponent", "ATL", "--as-of", "2026-10-29"])
     md = next(tmp_path.glob("*.md"))
     assert check(md) == []
