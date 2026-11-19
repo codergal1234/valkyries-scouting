@@ -24,6 +24,6 @@ addopts = ["--durations=10", "--strict-markers"]
 source = ["scout"]
 
 [tool.coverage.report]
-# Line coverage is 82.07%; raise the floor as tests are added, never lower it.
-fail_under = 82
+# Line coverage is 82.52%; raise the floor as tests are added, never lower it.
+fail_under = 82.5
 show_missing = true
