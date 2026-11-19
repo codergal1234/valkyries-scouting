@@ -12,6 +12,7 @@ CONTRACTS = {
         "period_number": "INTEGER",
         "start_quarter_seconds_remaining": "DOUBLE",
         "type_text": "VARCHAR",
+        "text": "VARCHAR",
         "team_id": "INTEGER",
         "home_team_id": "INTEGER",
         "away_team_id": "INTEGER",

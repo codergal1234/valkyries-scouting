@@ -18,12 +18,14 @@ Definitions
   putbacks, alley-oops; mid = every other 2-point attempt
 - Clutch: 4th quarter or overtime, final 5:00 of the period, score within 5 before the play
 - Transition (clock-based proxy): FGA or shooting foul at elapsed clock time 0 through
-  8 seconds after a player defensive rebound or opponent turnover in the same game/period.
+  8 seconds after a player defensive rebound or opponent turnover in the same game/period,
+  comparing decimal clocks at the feed's tenth-second precision.
   Turnovers include dead-ball turnovers (including Traveling); the clock cannot measure
   inbound delay. Team/dead-ball rebounds do not start transition. Fouls, timeouts,
   substitutions, reviews, jump balls, violations, opponent offensive events and made
-  baskets end the window. Own offensive rebounds/multiple misses retain the original
-  acquisition; never restart its clock. An immediately linked same-clock shooting foul
+  baskets and dead-ball offensive team rebounds end the window. Own live offensive
+  rebounds/multiple misses retain the original acquisition; never restart its clock.
+  An immediately linked same-clock shooting foul
   after a qualifying made basket preserves the and-one.
   Ordinary FTs link only to the latest basketball event being a qualifying opponent
   shooting foul, at the same clock, allowing substitutions/timeouts/reviews during
@@ -130,7 +132,7 @@ def transition(
         WINDOW w AS (PARTITION BY game_id ORDER BY game_play_number)
     ), events AS (
         SELECT p.*, g.team_id owner, g.opponent_team_id defender,
-               start_quarter_seconds_remaining secs,
+               start_quarter_seconds_remaining::DECIMAL(4, 1) secs,
                shooting_play AND points_attempted IN (2, 3) fga,
                regexp_matches(type_text, '^Free Throw - [123] of [123]$') ordinary_ft,
                (type_text = 'Defensive Rebound' AND p.team_id = g.team_id
@@ -144,6 +146,8 @@ def transition(
                  OR (shooting_play AND (scoring_play OR p.team_id <> g.team_id
                                         OR points_attempted = 1))
                  OR (type_text LIKE '%Rebound' AND p.team_id <> g.team_id)
+                 OR (type_text = 'Offensive Rebound'
+                     AND regexp_matches(coalesce(text, ''), '(?i)team rebound'))
                  OR (type_text = 'Defensive Rebound') stop,
                NOT regexp_matches(type_text, '(?i)(^Free Throw|substitution|timeout|review|challenge)')
                  AND NOT (type_text = 'Offensive Rebound'

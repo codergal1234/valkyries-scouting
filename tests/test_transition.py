@@ -82,13 +82,65 @@ def test_hand_checked_fixture() -> None:
         assert both["defense_share"] == pytest.approx(100 * 14 / 135)
 
 
-@pytest.mark.parametrize("elapsed,expected", [(0, 1), (8, 1), (8.01, 0), (9, 0), (-1, 0)])
+@pytest.mark.parametrize("elapsed,expected", [(0, 1), (8, 1), (8.1, 0), (9, 0), (-1, 0)])
 def test_clock_boundary(elapsed: float, expected: int) -> None:
     with synthetic([(100, GS, "Defensive Rebound", 0, 0), (100 - elapsed, GS, "Jump Shot", 2, 2)]) as con:
         result = transition(con, GS, "2026-10-29")
         assert result["offense_points"] == 2 * expected
         assert result["offense_possessions"] == expected
         assert result["offense_ppp"] == (2 if expected else None)
+
+
+@pytest.mark.parametrize("shot_clock,expected", [(8.2, 1), (8.1, 1), (8.0, 0)])
+@pytest.mark.parametrize("shooting_foul", [False, True])
+def test_fractional_clock_boundary(shot_clock: float, expected: int, shooting_foul: bool) -> None:
+    events: list[Event] = [(16.1, GS, "Defensive Rebound", 0, 0)]
+    if shooting_foul:
+        events.extend(
+            [
+                (shot_clock, ATL, "Shooting Foul", 0, 0),
+                (shot_clock, GS, "Free Throw - 1 of 2", 1, 1),
+                (shot_clock, GS, "Free Throw - 2 of 2", 1, 1),
+            ]
+        )
+    else:
+        events.append((shot_clock, GS, "Jump Shot", 2, 2))
+    with synthetic(events) as con:
+        stats = transition(con, GS, "2026-10-29")
+        assert stats["offense_points"] == 2 * expected
+        assert stats["offense_possessions"] == expected
+        assert stats["defense_points"] == 0
+        assert transition(con, ATL, "2026-10-29")["defense_points"] == 2 * expected
+
+
+@pytest.mark.parametrize("miss_before_rebound", [False, True])
+def test_dead_ball_offensive_team_rebound_ends_window(miss_before_rebound: bool) -> None:
+    events: list[Event] = [(100, GS, "Defensive Rebound", 0, 0)]
+    if miss_before_rebound:
+        events.append((98, GS, "Jump Shot", 0, 2))
+    events.extend([(97, GS, "Offensive Rebound", 0, 0), (96, GS, "Jump Shot", 2, 2)])
+    with synthetic(events) as con:
+        con.execute("UPDATE pbp SET text = 'Valkyries offensive team rebound' WHERE type_text = 'Offensive Rebound'")
+        stats = transition(con, GS, "2026-10-29")
+        assert stats["offense_points"] == 0
+        # The live transition miss still counts; the post-inbound basket does not.
+        assert stats["offense_possessions"] == int(miss_before_rebound)
+
+
+def test_administrative_team_rebound_preserves_shooting_foul_fts() -> None:
+    with synthetic(
+        [
+            (100, GS, "Defensive Rebound", 0, 0),
+            (98, ATL, "Shooting Foul", 0, 0),
+            (98, GS, "Free Throw - 1 of 2", 0, 1),
+            (98, GS, "Offensive Rebound", 0, 0),
+            (98, GS, "Free Throw - 2 of 2", 1, 1),
+            (97, GS, "Jump Shot", 2, 2),
+        ]
+    ) as con:
+        con.execute("UPDATE pbp SET text = 'Valkyries offensive team rebound' WHERE type_text = 'Offensive Rebound'")
+        stats = transition(con, GS, "2026-10-29")
+        assert (stats["offense_points"], stats["offense_possessions"]) == (1, 1)
 
 
 def test_misses_multiple_attempts_and_no_clock_restart() -> None:
@@ -140,7 +192,7 @@ def test_team_rebound_is_not_live_acquisition() -> None:
         assert transition(con, GS, "2026-10-29")["offense_possessions"] == 0
 
 
-@pytest.mark.parametrize("elapsed,points", [(8, 2), (8.01, 0)])
+@pytest.mark.parametrize("elapsed,points", [(8, 2), (8.1, 0)])
 def test_shooting_foul_free_throws(elapsed: float, points: int) -> None:
     with synthetic(
         [
